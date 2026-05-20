@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Rancher Log Plus",
+  "version": "0.1.0",
+  "description": "A local Chrome extension that improves Rancher pod log viewing with coloring, filtering, search, export, and clear controls.",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "utils.js",
+        "parser.js",
+        "ui.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

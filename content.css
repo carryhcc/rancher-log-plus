@@ -1,0 +1,501 @@
+:root {
+  --rls-bg-modal: #000000;
+  --rls-bg-panel: #000000;
+  --rls-border-modal: rgba(82, 160, 255, 0.26);
+  --rls-font-size-log: 12px;
+  --rls-line-height-log: 1.5;
+  --rls-text-primary: #d7e4f3;
+  --rls-text-muted: #8fc7ff;
+  
+  /* Log Level Colors */
+  --rls-color-error: #ff6b6b;
+  --rls-color-warn: #ffd257;
+  --rls-color-info: #e2e8f0;
+  --rls-color-debug: #a0aec0;
+  --rls-color-trace: #64748b;
+  --rls-color-plain: #d7e4f3;
+
+  /* Log Left Border Colors */
+  --rls-border-error: #ff4d4d;
+  --rls-border-warn: #ffa500;
+  --rls-border-info: #2ecc71;
+  --rls-border-debug: #3498db;
+  --rls-border-trace: #7f8c8d;
+}
+
+/* Minimal inline bar shown in Raw Mode */
+.rancher-log-style__inline-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  margin: 10px 0;
+  border: 1px solid rgba(82, 160, 255, 0.16);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(16, 27, 43, 0.95), rgba(10, 18, 30, 0.92));
+  box-shadow: 0 4px 16px rgba(5, 10, 18, 0.15);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.rancher-log-style__inline-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rancher-log-style__inline-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Backdrop overlay */
+.rancher-log-style__backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(6, 11, 19, 0.72);
+  backdrop-filter: blur(10px);
+  z-index: 999998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rancher-log-style__backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Centered popup modal container */
+.rancher-log-style__modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
+  width: 92vw;
+  height: 86vh;
+  max-width: 1550px;
+  max-height: 950px;
+  background: var(--rls-bg-modal);
+  border: 1px solid var(--rls-border-modal);
+  border-radius: 16px;
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.65), 
+    0 0 0 1px rgba(255, 255, 255, 0.04), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: 
+    opacity 0.24s cubic-bezier(0.4, 0, 0.2, 1), 
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.rancher-log-style__modal.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+}
+
+/* Header toolbar inside the modal */
+.rancher-log-style__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(82, 160, 255, 0.16);
+  background: rgba(13, 23, 38, 0.95);
+  backdrop-filter: blur(4px);
+  flex: 0 0 auto;
+}
+
+.rancher-log-style__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rancher-log-style__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Generic badge element */
+.rancher-log-style__badge {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(76, 166, 255, 0.16);
+  color: #8fc7ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Controls input / select / button */
+.rancher-log-style__input,
+.rancher-log-style__select,
+.rancher-log-style__button {
+  height: 34px;
+  border: 1px solid rgba(123, 157, 196, 0.24);
+  border-radius: 8px;
+  background: rgba(13, 22, 36, 0.86);
+  color: #d7e4f3;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, sans-serif;
+  outline: none;
+}
+
+.rancher-log-style__input:focus,
+.rancher-log-style__select:focus {
+  border-color: rgba(82, 160, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(82, 160, 255, 0.15);
+}
+
+.rancher-log-style__input,
+.rancher-log-style__select {
+  padding: 0 12px;
+}
+
+.rancher-log-style__select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 32px !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fc7ff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.rancher-log-style__select option {
+  background-color: #0b121f;
+  color: #d7e4f3;
+}
+
+.rancher-log-style__level-select {
+  position: relative;
+  flex: 0 0 auto;
+  width: 112px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.rancher-log-style__level-trigger {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(123, 157, 196, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(23, 39, 61, 0.96), rgba(10, 18, 31, 0.96));
+  color: #d7e4f3;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  outline: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.rancher-log-style__level-trigger:hover,
+.rancher-log-style__level-select.is-open .rancher-log-style__level-trigger {
+  border-color: rgba(82, 160, 255, 0.72);
+  box-shadow:
+    0 0 0 2px rgba(82, 160, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.rancher-log-style__level-trigger-icon {
+  color: #8fc7ff;
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.rancher-log-style__level-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1000001;
+  width: 132px;
+  padding: 6px;
+  border: 1px solid rgba(82, 160, 255, 0.3);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(14, 25, 41, 0.98), rgba(5, 10, 18, 0.98));
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: none;
+}
+
+.rancher-log-style__level-select.is-open .rancher-log-style__level-menu {
+  display: block;
+}
+
+.rancher-log-style__level-option {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #d7e4f3;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.rancher-log-style__level-option:hover {
+  background: rgba(82, 160, 255, 0.16);
+  color: #ffffff;
+}
+
+.rancher-log-style__level-option.is-selected {
+  background: linear-gradient(180deg, #2188ff, #1673e6);
+  color: #ffffff;
+}
+
+.rancher-log-style__input {
+  min-width: 220px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.rancher-log-style__input.unified-query-input {
+  min-width: 480px;
+}
+
+.rancher-log-style__button {
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.1s ease;
+}
+
+.rancher-log-style__button:hover {
+  border-color: rgba(120, 191, 255, 0.55);
+  background: rgba(20, 33, 52, 0.98);
+}
+
+.rancher-log-style__button:active {
+  transform: scale(0.97);
+}
+
+.rancher-log-style__button.is-active {
+  border-color: rgba(255, 193, 94, 0.7);
+  color: #ffd790;
+  background: rgba(43, 31, 16, 0.6);
+}
+
+.rancher-log-style__button.is-primary {
+  background: linear-gradient(180deg, #3f9eff, #1980ff);
+  border-color: #1980ff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.rancher-log-style__button.is-primary:hover {
+  background: linear-gradient(180deg, #57abff, #308eff);
+  border-color: #308eff;
+}
+
+.rancher-log-style__button.is-danger {
+  border-color: rgba(255, 93, 115, 0.4);
+  color: #ffb3bd;
+  background: rgba(43, 16, 20, 0.6);
+}
+
+.rancher-log-style__button.is-danger:hover {
+  border-color: #ff5d73;
+  background: rgba(60, 20, 26, 0.9);
+  color: #ffffff;
+}
+
+.rancher-log-style__button.is-success {
+  border-color: rgba(46, 204, 113, 0.4);
+  color: #a3e4d7;
+  background: rgba(16, 43, 27, 0.6);
+}
+
+.rancher-log-style__button.is-success:hover {
+  border-color: #2ecc71;
+  background: rgba(20, 60, 36, 0.9);
+  color: #ffffff;
+}
+
+.rancher-log-style__button.is-warning {
+  border-color: rgba(255, 193, 94, 0.45);
+  color: #ffd790;
+  background: rgba(43, 31, 16, 0.6);
+}
+
+.rancher-log-style__button.is-warning:hover {
+  border-color: #ffc15e;
+  background: rgba(68, 45, 18, 0.92);
+  color: #ffffff;
+}
+
+/* Status texts */
+.rancher-log-style__status {
+  color: #90a8c2;
+  font-size: 12px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Log Display Panel */
+.rancher-log-style__panel {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px 20px;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
+  font-size: var(--rls-font-size-log);
+  line-height: var(--rls-line-height-log);
+  color: var(--rls-color-plain);
+  background: var(--rls-bg-panel);
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Slick Custom Scrollbar for the Panel */
+.rancher-log-style__panel::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.rancher-log-style__panel::-webkit-scrollbar-track {
+  background: var(--rls-bg-panel);
+}
+
+.rancher-log-style__panel::-webkit-scrollbar-thumb {
+  background: rgba(82, 160, 255, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.rancher-log-style__panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 160, 255, 0.36);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Log lines styles */
+.rancher-log-style__line {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 3px 0;
+  border-left: 3px solid transparent;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.rancher-log-style__line:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rancher-log-style__line.is-stack,
+.rancher-log-style__line.is-detail {
+  padding-left: 16px;
+  color: #a4b4c7;
+}
+
+.rancher-log-style__line.is-error {
+  border-left-color: var(--rls-border-error);
+  color: var(--rls-color-error);
+}
+
+.rancher-log-style__line.is-warn {
+  border-left-color: var(--rls-border-warn);
+  color: var(--rls-color-warn);
+}
+
+.rancher-log-style__line.is-info {
+  border-left-color: var(--rls-border-info);
+  color: var(--rls-color-info);
+}
+
+.rancher-log-style__line.is-debug {
+  border-left-color: var(--rls-border-debug);
+  color: var(--rls-color-debug);
+}
+
+.rancher-log-style__line.is-trace {
+  border-left-color: var(--rls-border-trace);
+  color: var(--rls-color-trace);
+}
+
+/* Specific level label coloring for a professional IDE feel */
+.rancher-log-style__line.is-error .rancher-log-style__level {
+  color: var(--rls-border-error);
+}
+.rancher-log-style__line.is-warn .rancher-log-style__level {
+  color: var(--rls-border-warn);
+}
+.rancher-log-style__line.is-info .rancher-log-style__level {
+  color: var(--rls-border-info);
+}
+.rancher-log-style__line.is-debug .rancher-log-style__level {
+  color: var(--rls-border-debug);
+}
+.rancher-log-style__line.is-trace .rancher-log-style__level {
+  color: var(--rls-border-trace);
+}
+
+.rancher-log-style__timestamp {
+  flex: 0 0 auto;
+  color: #6f869c;
+  user-select: none;
+}
+
+.rancher-log-style__level {
+  flex: 0 0 auto;
+  min-width: 48px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.rancher-log-style__message {
+  flex: 1 1 auto;
+}
+
+.rancher-log-style__empty {
+  padding: 48px 0;
+  text-align: center;
+  color: #87a0b8;
+  font-size: 14px;
+}
+
+.rancher-log-style__notice {
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(82, 160, 255, 0.08);
+  border: 1px solid rgba(82, 160, 255, 0.12);
+  color: #8faecf;
+  font-size: 12px;
+  display: inline-block;
+}
