@@ -21,6 +21,16 @@ Rancher Log Plus 是一个本地 Chrome 扩展，用来增强 Rancher Pod 日志
 - 导出当前过滤结果为本地 `.log` 文件。
 - 关闭美化弹窗时同步关闭 Rancher 原生日志弹窗。
 
+## 效果预览
+
+修改前：Rancher 原生日志窗口会把日志挤在一整块区域里，滚动快、层级不明显。
+
+![Rancher Log Plus 修改前](./pic/1.png)
+
+修改后：Rancher Log Plus 增加日志级别颜色、清晰工具栏、过滤、滚动控制、清除和导出。
+
+![Rancher Log Plus 修改后](./pic/2.png)
+
 ## 支持的 Rancher 日志结构
 
 Rancher Log Plus 针对 Rancher 2.x 常见日志弹窗结构做了适配：

@@ -21,6 +21,16 @@ The extension runs entirely in your browser. It does not send logs, cookies, tok
 - Export the current filtered logs to a local `.log` file.
 - Close the beautified modal and Rancher's native log modal together.
 
+## Preview
+
+Before: Rancher's native log window keeps all lines in one dense, fast-scrolling block.
+
+![Before Rancher Log Plus](./pic/1.png)
+
+After: Rancher Log Plus adds level colors, a clearer toolbar, filtering, scroll controls, clearing, and export.
+
+![After Rancher Log Plus](./pic/2.png)
+
 ## Supported Rancher Log Structure
 
 Rancher Log Plus is optimized for the Rancher log modal structure used by Rancher 2.x:
