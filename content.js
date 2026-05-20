@@ -25,12 +25,63 @@
       REFRESH_DELAY: 60,
       MAX_RENDER_LINES: 5000,
       MAX_CACHE_LIMIT: 20000,
+      I18N: {
+        en: {
+          rawView: "Raw view",
+          rawCached: "Raw view (cached {total} lines)",
+          beautifyLogs: "Beautify Logs",
+          beautified: "Beautified ({total} lines)",
+          unread: "No logs loaded",
+          cachedLogs: "Cached {total} log lines",
+          cachedFiltered: "Cached {total} lines | {matched} matched",
+          filterPlaceholder: "Filter... supports and, not, /regex/i",
+          pauseScroll: "Pause Scroll",
+          resumeScroll: "Resume Scroll",
+          clearLogs: "Clear Logs",
+          downloadLogs: "Download Logs",
+          close: "Close",
+          empty: "No logs match the current filter",
+          renderNotice: "Showing the latest {rendered} of {total} matched lines",
+          noDownload: "No logs match the current filter.",
+        },
+        zh: {
+          rawView: "原始视图",
+          rawCached: "原始视图 (已缓存 {total} 行)",
+          beautifyLogs: "美化日志",
+          beautified: "已开启美化 ({total} 行)",
+          unread: "未读取到日志",
+          cachedLogs: "已缓存 {total} 行日志",
+          cachedFiltered: "已缓存 {total} 行 | 过滤匹配 {matched} 行",
+          filterPlaceholder: "过滤...支持 and、not、/regex/i",
+          pauseScroll: "暂停滚动",
+          resumeScroll: "恢复滚动",
+          clearLogs: "清除日志",
+          downloadLogs: "下载日志",
+          close: "关闭",
+          empty: "当前过滤条件下没有日志",
+          renderNotice: "仅显示匹配的 {total} 行中的后 {rendered} 行",
+          noDownload: "当前过滤条件下没有可下载的日志！",
+        },
+      },
     };
   }
 
   const { RLS } = window;
 
   const { STATE, LEVELS, REFRESH_DELAY, MAX_RENDER_LINES, MAX_CACHE_LIMIT } = RLS;
+
+  RLS.getLocale = RLS.getLocale || function() {
+    return /^zh\b/i.test(navigator.language || "") ? "zh" : "en";
+  };
+
+  RLS.t = RLS.t || function(key, params = {}) {
+    const locale = RLS.getLocale();
+    const text = RLS.I18N[locale]?.[key] || RLS.I18N.en[key] || key;
+    return Object.entries(params).reduce(
+      (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
+      text
+    );
+  };
 
   RLS.escapeHtml = RLS.escapeHtml || function(value) {
     return value
@@ -423,7 +474,10 @@
       if (hiddenCount > 0) {
         const notice = document.createElement("div");
         notice.className = "rancher-log-style__notice";
-        notice.textContent = `仅显示最近 ${hiddenCount + Math.min(matchedLines.length, MAX_RENDER_LINES)} 行中的后 ${MAX_RENDER_LINES} 行`;
+        notice.textContent = RLS.t("renderNotice", {
+          total: hiddenCount + Math.min(matchedLines.length, MAX_RENDER_LINES),
+          rendered: MAX_RENDER_LINES,
+        });
         STATE.prettyView.appendChild(notice);
       }
 
@@ -431,7 +485,7 @@
       if (linesToRender.length === 0) {
         const empty = document.createElement("div");
         empty.className = "rancher-log-style__empty";
-        empty.textContent = "当前过滤条件下没有日志";
+        empty.textContent = RLS.t("empty");
         STATE.prettyView.appendChild(empty);
         return;
       }
@@ -491,7 +545,10 @@
           noticeEl.className = "rancher-log-style__notice";
           STATE.prettyView.insertBefore(noticeEl, STATE.prettyView.firstChild);
         }
-        noticeEl.textContent = `仅显示最近 ${totalMatched} 行中的后 ${MAX_RENDER_LINES} 行`;
+        noticeEl.textContent = RLS.t("renderNotice", {
+          total: totalMatched,
+          rendered: MAX_RENDER_LINES,
+        });
       }
     }
 
@@ -506,14 +563,19 @@
 
     if (STATE.controls?.inlineStatus) {
       STATE.controls.inlineStatus.textContent = 
-        STATE.mode === "pretty" ? `已开启美化 (${totalCount} 行)` : `原始视图 (已缓存 ${totalCount} 行)`;
+        STATE.mode === "pretty"
+          ? RLS.t("beautified", { total: totalCount })
+          : RLS.t("rawCached", { total: totalCount });
     }
 
     if (STATE.controls?.modalStatus) {
       if (STATE.keyword || STATE.level !== "ALL") {
-        STATE.controls.modalStatus.textContent = `已缓存 ${totalCount} 行 | 过滤匹配 ${matchedCount} 行`;
+        STATE.controls.modalStatus.textContent = RLS.t("cachedFiltered", {
+          total: totalCount,
+          matched: matchedCount,
+        });
       } else {
-        STATE.controls.modalStatus.textContent = `已缓存 ${totalCount} 行日志`;
+        STATE.controls.modalStatus.textContent = RLS.t("cachedLogs", { total: totalCount });
       }
     }
   };
@@ -800,7 +862,7 @@
 
     const inlineStatus = document.createElement("span");
     inlineStatus.className = "rancher-log-style__status";
-    inlineStatus.textContent = "原始视图";
+    inlineStatus.textContent = RLS.t("rawView");
 
     inlineLeft.appendChild(inlineBadge);
     inlineLeft.appendChild(inlineStatus);
@@ -811,7 +873,7 @@
     const inlineButton = document.createElement("button");
     inlineButton.type = "button";
     inlineButton.className = "rancher-log-style__button is-primary";
-    inlineButton.textContent = "美化日志";
+    inlineButton.textContent = RLS.t("beautifyLogs");
     inlineButton.addEventListener("click", () => {
       RLS.openBeautifiedModal();
     });
@@ -852,7 +914,7 @@
 
     const modalStatus = document.createElement("span");
     modalStatus.className = "rancher-log-style__status";
-    modalStatus.textContent = "未读取到日志";
+    modalStatus.textContent = RLS.t("unread");
 
     toolbarLeft.appendChild(modalBadge);
     toolbarLeft.appendChild(modalStatus);
@@ -864,7 +926,7 @@
 
     const keywordInput = document.createElement("input");
     keywordInput.className = "rancher-log-style__input unified-query-input";
-    keywordInput.placeholder = "过滤...支持and,not";
+    keywordInput.placeholder = RLS.t("filterPlaceholder");
     keywordInput.value = STATE.keyword;
     keywordInput.addEventListener("input", () => {
       STATE.keyword = keywordInput.value;
@@ -876,10 +938,10 @@
     const pauseButton = document.createElement("button");
     pauseButton.type = "button";
     pauseButton.className = "rancher-log-style__button";
-    pauseButton.textContent = "暂停滚动";
+    pauseButton.textContent = RLS.t("pauseScroll");
     pauseButton.addEventListener("click", () => {
       STATE.pauseScroll = !STATE.pauseScroll;
-      pauseButton.textContent = STATE.pauseScroll ? "恢复滚动" : "暂停滚动";
+      pauseButton.textContent = STATE.pauseScroll ? RLS.t("resumeScroll") : RLS.t("pauseScroll");
       pauseButton.classList.toggle("is-active", STATE.pauseScroll);
       if (!STATE.pauseScroll && STATE.prettyView) {
         STATE.prettyView.scrollTop = STATE.prettyView.scrollHeight;
@@ -889,7 +951,7 @@
     const clearButton = document.createElement("button");
     clearButton.type = "button";
     clearButton.className = "rancher-log-style__button is-warning";
-    clearButton.textContent = "清除日志";
+    clearButton.textContent = RLS.t("clearLogs");
     clearButton.addEventListener("click", () => {
       RLS.clearLogCacheAndScreen();
     });
@@ -897,11 +959,11 @@
     const exportButton = document.createElement("button");
     exportButton.type = "button";
     exportButton.className = "rancher-log-style__button is-success";
-    exportButton.textContent = "下载日志";
+    exportButton.textContent = RLS.t("downloadLogs");
     exportButton.addEventListener("click", () => {
       const matchedLines = STATE.lines.filter(RLS.matchesFilters);
       if (matchedLines.length === 0) {
-        alert("当前过滤条件下没有可下载的日志！");
+        alert(RLS.t("noDownload"));
         return;
       }
 
@@ -930,7 +992,7 @@
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.className = "rancher-log-style__button is-danger";
-    closeButton.textContent = "关闭";
+    closeButton.textContent = RLS.t("close");
     closeButton.addEventListener("click", () => {
       RLS.closeBeautifiedModal();
     });

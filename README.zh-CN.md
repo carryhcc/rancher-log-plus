@@ -11,6 +11,7 @@ Rancher Log Plus 是一个本地 Chrome 扩展，用来增强 Rancher Pod 日志
 ## 功能
 
 - 高亮 `ERROR`、`WARN`、`INFO`、`DEBUG`、`TRACE` 日志级别。
+- 根据浏览器语言自动切换扩展界面的中文或英文显示。
 - 使用自定义深色日志级别下拉框，避免系统原生浅色菜单影响黑底日志阅读。
 - 支持关键字过滤、多个 `and` 条件、`not` 排除条件，以及 `/timeout|failed/i` 这类 JavaScript 风格正则。
 - 保留 Rancher 原始日志视图，作为回退方案。
@@ -51,6 +52,8 @@ Rancher Log Plus 针对 Rancher 2.x 常见日志弹窗结构做了适配：
 6. 点击 `清除日志` 清除 Rancher 原始屏幕并重置扩展缓存。
 7. 点击 `下载日志` 导出当前过滤后的日志。
 8. 点击 `关闭` 或按 `Escape` 关闭美化视图和 Rancher 原生日志弹窗。
+
+扩展界面会自动跟随 Chrome 浏览器语言：中文浏览器显示中文，其他语言默认显示英文。
 
 ## 过滤示例
 

@@ -11,6 +11,7 @@ The extension runs entirely in your browser. It does not send logs, cookies, tok
 ## Features
 
 - Highlight `ERROR`, `WARN`, `INFO`, `DEBUG`, and `TRACE` log levels.
+- Automatically switch extension UI text between English and Chinese based on the browser language.
 - Replace the native level dropdown with a custom dark dropdown that fits log-reading UI.
 - Filter logs by keyword, multiple `and` terms, `not` exclusions, or JavaScript-style regex such as `/timeout|failed/i`.
 - Keep Rancher's original raw log view as a fallback.
@@ -51,6 +52,8 @@ The extension only activates when it detects a Rancher-style log container. Alth
 6. Click `Clear Logs` to clear Rancher's screen and reset the extension cache.
 7. Click `Download Logs` to export the currently filtered logs.
 8. Click `Close` or press `Escape` to close the enhanced viewer and the Rancher log modal.
+
+The extension UI follows Chrome's browser language automatically. Chinese browsers display Chinese labels; other languages fall back to English.
 
 ## Filter Examples
 

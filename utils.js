@@ -24,6 +24,57 @@
     REFRESH_DELAY: 60,
     MAX_RENDER_LINES: 5000,
     MAX_CACHE_LIMIT: 20000,
+    I18N: {
+      en: {
+        rawView: "Raw view",
+        rawCached: "Raw view (cached {total} lines)",
+        beautifyLogs: "Beautify Logs",
+        beautified: "Beautified ({total} lines)",
+        unread: "No logs loaded",
+        cachedLogs: "Cached {total} log lines",
+        cachedFiltered: "Cached {total} lines | {matched} matched",
+        filterPlaceholder: "Filter... supports and, not, /regex/i",
+        pauseScroll: "Pause Scroll",
+        resumeScroll: "Resume Scroll",
+        clearLogs: "Clear Logs",
+        downloadLogs: "Download Logs",
+        close: "Close",
+        empty: "No logs match the current filter",
+        renderNotice: "Showing the latest {rendered} of {total} matched lines",
+        noDownload: "No logs match the current filter.",
+      },
+      zh: {
+        rawView: "原始视图",
+        rawCached: "原始视图 (已缓存 {total} 行)",
+        beautifyLogs: "美化日志",
+        beautified: "已开启美化 ({total} 行)",
+        unread: "未读取到日志",
+        cachedLogs: "已缓存 {total} 行日志",
+        cachedFiltered: "已缓存 {total} 行 | 过滤匹配 {matched} 行",
+        filterPlaceholder: "过滤...支持 and、not、/regex/i",
+        pauseScroll: "暂停滚动",
+        resumeScroll: "恢复滚动",
+        clearLogs: "清除日志",
+        downloadLogs: "下载日志",
+        close: "关闭",
+        empty: "当前过滤条件下没有日志",
+        renderNotice: "仅显示匹配的 {total} 行中的后 {rendered} 行",
+        noDownload: "当前过滤条件下没有可下载的日志！",
+      },
+    },
+
+    getLocale() {
+      return /^zh\b/i.test(navigator.language || "") ? "zh" : "en";
+    },
+
+    t(key, params = {}) {
+      const locale = RLS.getLocale();
+      const text = RLS.I18N[locale]?.[key] || RLS.I18N.en[key] || key;
+      return Object.entries(params).reduce(
+        (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
+        text
+      );
+    },
 
     escapeHtml(value) {
       return value
