@@ -1,8 +1,4 @@
 (() => {
-  if (!/Rancher/i.test(document.title || "")) {
-    return;
-  }
-
   if (!window.RLS) {
     window.RLS = {
       STATE: {
@@ -12,6 +8,7 @@
         controls: null,
         observer: null,
         bodyObserver: null,
+        titleObserver: null,
         refreshTimer: null,
         lines: [],
         mode: "raw",
@@ -129,9 +126,98 @@
 
   RLS.matchesCompiledTerm = RLS.matchesCompiledTerm || function(text, term) {
     if (term.type === "regex") {
+      term.regex.lastIndex = 0;
       return term.regex.test(text);
     }
     return text.toLowerCase().includes(term.text);
+  };
+
+  RLS.escapeRegExp = RLS.escapeRegExp || function(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  };
+
+  RLS.getHighlightTerms = RLS.getHighlightTerms || function() {
+    if (!STATE.keyword) {
+      return [];
+    }
+    return RLS.getCompiledQuery().includes;
+  };
+
+  RLS.buildHighlightRanges = RLS.buildHighlightRanges || function(text, terms) {
+    const ranges = [];
+    const lowerText = text.toLowerCase();
+
+    for (const term of terms) {
+      if (term.type === "regex") {
+        const baseFlags = term.regex.flags.replace(/g/g, "");
+        const regex = new RegExp(term.regex.source, `${baseFlags}g`);
+        let match = regex.exec(text);
+        while (match) {
+          const matchedText = match[0] || "";
+          if (matchedText.length > 0) {
+            ranges.push([match.index, match.index + matchedText.length]);
+          } else {
+            regex.lastIndex += 1;
+          }
+          match = regex.exec(text);
+        }
+        continue;
+      }
+
+      if (!term.text) {
+        continue;
+      }
+
+      let start = 0;
+      while (start < lowerText.length) {
+        const index = lowerText.indexOf(term.text, start);
+        if (index === -1) {
+          break;
+        }
+        ranges.push([index, index + term.text.length]);
+        start = index + term.text.length;
+      }
+    }
+
+    if (ranges.length === 0) {
+      return [];
+    }
+
+    ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const merged = [ranges[0]];
+    for (let i = 1; i < ranges.length; i += 1) {
+      const current = ranges[i];
+      const previous = merged[merged.length - 1];
+      if (current[0] <= previous[1]) {
+        previous[1] = Math.max(previous[1], current[1]);
+      } else {
+        merged.push(current);
+      }
+    }
+    return merged;
+  };
+
+  RLS.highlightText = RLS.highlightText || function(text) {
+    const safeText = text || "";
+    const terms = RLS.getHighlightTerms();
+    if (terms.length === 0) {
+      return RLS.escapeHtml(safeText);
+    }
+
+    const ranges = RLS.buildHighlightRanges(safeText, terms);
+    if (ranges.length === 0) {
+      return RLS.escapeHtml(safeText);
+    }
+
+    let cursor = 0;
+    let html = "";
+    for (const [start, end] of ranges) {
+      html += RLS.escapeHtml(safeText.slice(cursor, start));
+      html += `<mark class="rancher-log-style__highlight">${RLS.escapeHtml(safeText.slice(start, end))}</mark>`;
+      cursor = end;
+    }
+    html += RLS.escapeHtml(safeText.slice(cursor));
+    return html;
   };
 
   RLS.getFilteredLines = RLS.getFilteredLines || function() {
@@ -410,12 +496,12 @@
 
     const parts = [];
     if (line.timestamp) {
-      parts.push(`<span class="rancher-log-style__timestamp">${RLS.escapeHtml(line.timestamp)}</span>`);
+      parts.push(`<span class="rancher-log-style__timestamp">${RLS.highlightText(line.timestamp)}</span>`);
     }
     if (line.level !== "PLAIN") {
-      parts.push(`<span class="rancher-log-style__level">${RLS.escapeHtml(line.level)}</span>`);
+      parts.push(`<span class="rancher-log-style__level">${RLS.highlightText(line.level)}</span>`);
     }
-    parts.push(`<span class="rancher-log-style__message">${RLS.escapeHtml(line.message)}</span>`);
+    parts.push(`<span class="rancher-log-style__message">${RLS.highlightText(line.message)}</span>`);
 
     const div = document.createElement("div");
     div.className = classes;
@@ -1142,6 +1228,13 @@
   };
 
   RLS.inspectPage = function() {
+    if (!RLS.isSupportedPage()) {
+      if (STATE.mountedModal) {
+        RLS.cleanupEnhancer();
+      }
+      return;
+    }
+
     // If the modal we mounted to is no longer in the DOM, clean up our states immediately
     if (STATE.mountedModal && !document.body.contains(STATE.mountedModal)) {
       RLS.cleanupEnhancer();
@@ -1172,14 +1265,11 @@
     RLS.mountEnhancer(modal, rawView);
   };
 
-  RLS.bootstrap = function() {
-    if (!RLS.isSupportedPage()) {
+  RLS.startBodyObserver = function() {
+    if (STATE.bodyObserver) {
       return;
     }
 
-    RLS.inspectPage();
-
-    STATE.bodyObserver?.disconnect();
     STATE.bodyObserver = new MutationObserver(() => {
       RLS.inspectPage();
     });
@@ -1187,6 +1277,47 @@
       childList: true,
       subtree: true,
     });
+  };
+
+  RLS.stopBodyObserver = function() {
+    STATE.bodyObserver?.disconnect();
+    STATE.bodyObserver = null;
+  };
+
+  RLS.syncPageActivation = function() {
+    if (RLS.isSupportedPage()) {
+      RLS.inspectPage();
+      RLS.startBodyObserver();
+      return;
+    }
+
+    RLS.stopBodyObserver();
+    if (STATE.mountedModal || STATE.host || STATE.modal || STATE.backdrop) {
+      RLS.cleanupEnhancer();
+    }
+  };
+
+  RLS.bootstrap = function() {
+    RLS.syncPageActivation();
+
+    STATE.titleObserver?.disconnect();
+    STATE.titleObserver = new MutationObserver(() => {
+      RLS.syncPageActivation();
+    });
+
+    const titleNode = document.querySelector("title");
+    if (titleNode) {
+      STATE.titleObserver.observe(titleNode, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    } else if (document.head) {
+      STATE.titleObserver.observe(document.head, {
+        childList: true,
+        subtree: true,
+      });
+    }
   };
 
   if (document.readyState === "loading") {

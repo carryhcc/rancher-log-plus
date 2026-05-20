@@ -15,13 +15,13 @@
     const parts = [];
     if (line.timestamp) {
       parts.push(
-        `<span class="rancher-log-style__timestamp">${RLS.escapeHtml(line.timestamp)}</span>`
+        `<span class="rancher-log-style__timestamp">${RLS.highlightText(line.timestamp)}</span>`
       );
     }
     if (line.level !== "PLAIN") {
-      parts.push(`<span class="rancher-log-style__level">${RLS.escapeHtml(line.level)}</span>`);
+      parts.push(`<span class="rancher-log-style__level">${RLS.highlightText(line.level)}</span>`);
     }
-    parts.push(`<span class="rancher-log-style__message">${RLS.escapeHtml(line.message)}</span>`);
+    parts.push(`<span class="rancher-log-style__message">${RLS.highlightText(line.message)}</span>`);
 
     const div = document.createElement("div");
     div.className = classes;

@@ -1,8 +1,4 @@
 (() => {
-  if (!/Rancher/i.test(document.title || "")) {
-    return;
-  }
-
   window.RLS = {
     STATE: {
       mountedModal: null,    // The Rancher Modal node that is active
@@ -11,6 +7,7 @@
       controls: null,
       observer: null,
       bodyObserver: null,
+      titleObserver: null,
       refreshTimer: null,
       lines: [],
       mode: "raw",
@@ -122,9 +119,98 @@
 
     matchesCompiledTerm(text, term) {
       if (term.type === "regex") {
+        term.regex.lastIndex = 0;
         return term.regex.test(text);
       }
       return text.toLowerCase().includes(term.text);
+    },
+
+    escapeRegExp(value) {
+      return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    },
+
+    getHighlightTerms() {
+      if (!RLS.STATE.keyword) {
+        return [];
+      }
+      return RLS.getCompiledQuery().includes;
+    },
+
+    buildHighlightRanges(text, terms) {
+      const ranges = [];
+      const lowerText = text.toLowerCase();
+
+      for (const term of terms) {
+        if (term.type === "regex") {
+          const baseFlags = term.regex.flags.replace(/g/g, "");
+          const regex = new RegExp(term.regex.source, `${baseFlags}g`);
+          let match = regex.exec(text);
+          while (match) {
+            const matchedText = match[0] || "";
+            if (matchedText.length > 0) {
+              ranges.push([match.index, match.index + matchedText.length]);
+            } else {
+              regex.lastIndex += 1;
+            }
+            match = regex.exec(text);
+          }
+          continue;
+        }
+
+        if (!term.text) {
+          continue;
+        }
+
+        let start = 0;
+        while (start < lowerText.length) {
+          const index = lowerText.indexOf(term.text, start);
+          if (index === -1) {
+            break;
+          }
+          ranges.push([index, index + term.text.length]);
+          start = index + term.text.length;
+        }
+      }
+
+      if (ranges.length === 0) {
+        return [];
+      }
+
+      ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const merged = [ranges[0]];
+      for (let i = 1; i < ranges.length; i += 1) {
+        const current = ranges[i];
+        const previous = merged[merged.length - 1];
+        if (current[0] <= previous[1]) {
+          previous[1] = Math.max(previous[1], current[1]);
+        } else {
+          merged.push(current);
+        }
+      }
+      return merged;
+    },
+
+    highlightText(text) {
+      const safeText = text || "";
+      const terms = RLS.getHighlightTerms();
+      if (terms.length === 0) {
+        return RLS.escapeHtml(safeText);
+      }
+
+      const ranges = RLS.buildHighlightRanges(safeText, terms);
+      if (ranges.length === 0) {
+        return RLS.escapeHtml(safeText);
+      }
+
+      let cursor = 0;
+      let html = "";
+      for (const [start, end] of ranges) {
+        html += RLS.escapeHtml(safeText.slice(cursor, start));
+        html += `<mark class="rancher-log-style__highlight">${RLS.escapeHtml(safeText.slice(start, end))}</mark>`;
+        cursor = end;
+      }
+      html += RLS.escapeHtml(safeText.slice(cursor));
+      return html;
     },
 
     getFilteredLines() {
