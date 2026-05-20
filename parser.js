@@ -47,19 +47,6 @@
     };
   };
 
-  RLS.parseLogText = function(text) {
-    const lines = text.split(/\r?\n/);
-    const parsedLines = [];
-    lines.forEach((line, index) => {
-      const preceding = parsedLines[parsedLines.length - 1] || null;
-      const parsed = RLS.parseLine(line, index, preceding);
-      if (parsed) {
-        parsedLines.push(parsed);
-      }
-    });
-    return parsedLines;
-  };
-
   // Incremental backward parsing algorithm to completely avoid UI freeze
   RLS.parseNewLines = function() {
     if (!RLS.STATE.rawView) {
@@ -71,11 +58,9 @@
     // Reset cache ONLY if the log view was explicitly cleared/emptied by Rancher
     if (children.length === 0) {
       RLS.STATE.lines = [];
-      RLS.STATE.lastRawText = "";
-      RLS.STATE.lastChildrenCount = 0;
+      RLS.invalidateFilterCache?.();
       return [];
     }
-    RLS.STATE.lastChildrenCount = children.length;
 
     const newLines = [];
     let i = children.length - 1;

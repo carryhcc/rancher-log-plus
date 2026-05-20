@@ -1,4 +1,8 @@
 (() => {
+  if (!/Rancher/i.test(document.title || "")) {
+    return;
+  }
+
   window.RLS = {
     STATE: {
       mountedModal: null,    // The Rancher Modal node that is active
@@ -13,12 +17,15 @@
       level: localStorage.getItem("rls_level") || "ALL",
       keyword: localStorage.getItem("rls_keyword") || "",
       pauseScroll: false,
+      keydownHandler: null,
       host: null,            // Inline control bar in Raw Mode
       backdrop: null,        // Blur overlay backdrop
       modal: null,           // Centered popup modal container
       rawOriginalDisplay: "",
-      lastRawText: "",
-      lastChildrenCount: 0,
+      compiledQueryKey: "",
+      compiledQuery: null,
+      filteredCacheKey: "",
+      filteredLines: null,
     },
     LEVELS: ["ERROR", "WARN", "INFO", "DEBUG", "TRACE"],
     REFRESH_DELAY: 60,
@@ -74,6 +81,69 @@
         (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
         text
       );
+    },
+
+    isSupportedPage() {
+      return /Rancher/i.test(document.title || "");
+    },
+
+    invalidateFilterCache() {
+      RLS.STATE.filteredCacheKey = "";
+      RLS.STATE.filteredLines = null;
+    },
+
+    buildCompiledTerm(filterStr) {
+      const regexMatch = filterStr.match(/^\/(.+)\/([gimsuy]*)$/);
+      if (regexMatch) {
+        try {
+          const [, pattern, flags] = regexMatch;
+          return { type: "regex", regex: new RegExp(pattern, flags) };
+        } catch (e) {
+          // Invalid regex falls back to plain text matching.
+        }
+      }
+
+      return { type: "text", text: filterStr.toLowerCase() };
+    },
+
+    getCompiledQuery() {
+      if (RLS.STATE.compiledQueryKey === RLS.STATE.keyword && RLS.STATE.compiledQuery) {
+        return RLS.STATE.compiledQuery;
+      }
+
+      const { includes, excludes } = RLS.parseQuery(RLS.STATE.keyword);
+      RLS.STATE.compiledQueryKey = RLS.STATE.keyword;
+      RLS.STATE.compiledQuery = {
+        includes: includes.map((value) => RLS.buildCompiledTerm(value)),
+        excludes: excludes.map((value) => RLS.buildCompiledTerm(value)),
+      };
+      return RLS.STATE.compiledQuery;
+    },
+
+    matchesCompiledTerm(text, term) {
+      if (term.type === "regex") {
+        return term.regex.test(text);
+      }
+      return text.toLowerCase().includes(term.text);
+    },
+
+    getFilteredLines() {
+      const lastLineId = RLS.STATE.lines[RLS.STATE.lines.length - 1]?.id || "";
+      const cacheKey = `${RLS.STATE.level}\u0000${RLS.STATE.keyword}\u0000${RLS.STATE.lines.length}\u0000${lastLineId}`;
+      if (RLS.STATE.filteredCacheKey === cacheKey && RLS.STATE.filteredLines) {
+        return RLS.STATE.filteredLines;
+      }
+
+      const matchedLines = [];
+      for (const line of RLS.STATE.lines) {
+        if (RLS.matchesFilters(line)) {
+          matchedLines.push(line);
+        }
+      }
+
+      RLS.STATE.filteredCacheKey = cacheKey;
+      RLS.STATE.filteredLines = matchedLines;
+      return matchedLines;
     },
 
     escapeHtml(value) {
@@ -204,21 +274,7 @@
 
     matchTextOrRegex(text, filterStr) {
       if (!filterStr) return true;
-
-      // Check if it's a regex (e.g. /error.*/i or /error.*/)
-      const regexMatch = filterStr.match(/^\/(.+)\/([gimsuy]*)$/);
-      if (regexMatch) {
-        try {
-          const [, pattern, flags] = regexMatch;
-          const regex = new RegExp(pattern, flags);
-          return regex.test(text);
-        } catch (e) {
-          // If regex compiles with errors (invalid syntax), fall back to standard substring check
-        }
-      }
-
-      // Standard case-insensitive substring search
-      return text.toLowerCase().includes(filterStr.toLowerCase());
+      return RLS.matchesCompiledTerm(text, RLS.buildCompiledTerm(filterStr));
     },
 
     parseQuery(queryString) {

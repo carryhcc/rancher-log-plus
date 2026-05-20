@@ -1,4 +1,8 @@
 (() => {
+  if (!/Rancher/i.test(document.title || "")) {
+    return;
+  }
+
   if (!window.RLS) {
     window.RLS = {
       STATE: {
@@ -14,12 +18,15 @@
         level: localStorage.getItem("rls_level") || "ALL",
         keyword: localStorage.getItem("rls_keyword") || "",
         pauseScroll: false,
+        keydownHandler: null,
         host: null,
         backdrop: null,
         modal: null,
         rawOriginalDisplay: "",
-        lastRawText: "",
-        lastChildrenCount: 0,
+        compiledQueryKey: "",
+        compiledQuery: null,
+        filteredCacheKey: "",
+        filteredLines: null,
       },
       LEVELS: ["ERROR", "WARN", "INFO", "DEBUG", "TRACE"],
       REFRESH_DELAY: 60,
@@ -81,6 +88,69 @@
       (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
       text
     );
+  };
+
+  RLS.isSupportedPage = RLS.isSupportedPage || function() {
+    return /Rancher/i.test(document.title || "");
+  };
+
+  RLS.invalidateFilterCache = RLS.invalidateFilterCache || function() {
+    STATE.filteredCacheKey = "";
+    STATE.filteredLines = null;
+  };
+
+  RLS.buildCompiledTerm = RLS.buildCompiledTerm || function(filterStr) {
+    const regexMatch = filterStr.match(/^\/(.+)\/([gimsuy]*)$/);
+    if (regexMatch) {
+      try {
+        const [, pattern, flags] = regexMatch;
+        return { type: "regex", regex: new RegExp(pattern, flags) };
+      } catch (e) {
+        // Invalid regex falls back to plain text matching.
+      }
+    }
+
+    return { type: "text", text: filterStr.toLowerCase() };
+  };
+
+  RLS.getCompiledQuery = RLS.getCompiledQuery || function() {
+    if (STATE.compiledQueryKey === STATE.keyword && STATE.compiledQuery) {
+      return STATE.compiledQuery;
+    }
+
+    const { includes, excludes } = RLS.parseQuery(STATE.keyword);
+    STATE.compiledQueryKey = STATE.keyword;
+    STATE.compiledQuery = {
+      includes: includes.map((value) => RLS.buildCompiledTerm(value)),
+      excludes: excludes.map((value) => RLS.buildCompiledTerm(value)),
+    };
+    return STATE.compiledQuery;
+  };
+
+  RLS.matchesCompiledTerm = RLS.matchesCompiledTerm || function(text, term) {
+    if (term.type === "regex") {
+      return term.regex.test(text);
+    }
+    return text.toLowerCase().includes(term.text);
+  };
+
+  RLS.getFilteredLines = RLS.getFilteredLines || function() {
+    const lastLineId = STATE.lines[STATE.lines.length - 1]?.id || "";
+    const cacheKey = `${STATE.level}\u0000${STATE.keyword}\u0000${STATE.lines.length}\u0000${lastLineId}`;
+    if (STATE.filteredCacheKey === cacheKey && STATE.filteredLines) {
+      return STATE.filteredLines;
+    }
+
+    const matchedLines = [];
+    for (const line of STATE.lines) {
+      if (RLS.matchesFilters(line)) {
+        matchedLines.push(line);
+      }
+    }
+
+    STATE.filteredCacheKey = cacheKey;
+    STATE.filteredLines = matchedLines;
+    return matchedLines;
   };
 
   RLS.escapeHtml = RLS.escapeHtml || function(value) {
@@ -203,16 +273,7 @@
 
   RLS.matchTextOrRegex = RLS.matchTextOrRegex || function(text, filterStr) {
     if (!filterStr) return true;
-    const regexMatch = filterStr.match(/^\/(.+)\/([gimsuy]*)$/);
-    if (regexMatch) {
-      try {
-        const [, pattern, flags] = regexMatch;
-        return new RegExp(pattern, flags).test(text);
-      } catch (e) {
-        // Fall back to plain substring matching.
-      }
-    }
-    return text.toLowerCase().includes(filterStr.toLowerCase());
+    return RLS.matchesCompiledTerm(text, RLS.buildCompiledTerm(filterStr));
   };
 
   RLS.parseQuery = RLS.parseQuery || function(queryString) {
@@ -303,11 +364,9 @@
     const children = STATE.rawView.children || [];
     if (children.length === 0) {
       STATE.lines = [];
-      STATE.lastRawText = "";
-      STATE.lastChildrenCount = 0;
+      RLS.invalidateFilterCache();
       return [];
     }
-    STATE.lastChildrenCount = children.length;
 
     const newLines = [];
     let i = children.length - 1;
@@ -390,6 +449,7 @@
     const setValue = (value) => {
       STATE.level = value;
       localStorage.setItem("rls_level", STATE.level);
+      RLS.invalidateFilterCache();
       label.textContent = value;
       menu.querySelectorAll(".rancher-log-style__level-option").forEach((option) => {
         option.classList.toggle("is-selected", option.dataset.value === value);
@@ -415,14 +475,18 @@
       root.classList.toggle("is-open");
     });
 
-    document.addEventListener("click", (event) => {
+    const handleOutsideClick = (event) => {
       if (!root.contains(event.target)) {
         root.classList.remove("is-open");
       }
-    });
+    };
+    document.addEventListener("click", handleOutsideClick);
 
     root.appendChild(button);
     root.appendChild(menu);
+    root.cleanup = () => {
+      document.removeEventListener("click", handleOutsideClick);
+    };
     return root;
   };
 
@@ -440,18 +504,16 @@
       return true;
     }
 
-    const { includes, excludes } = RLS.parseQuery(STATE.keyword);
+    const { includes, excludes } = RLS.getCompiledQuery();
 
-    // All inclusion keywords must match
     for (const inc of includes) {
-      if (!RLS.matchTextOrRegex(line.raw, inc)) {
+      if (!RLS.matchesCompiledTerm(line.raw, inc)) {
         return false;
       }
     }
 
-    // No exclusion keywords must match
     for (const exc of excludes) {
-      if (RLS.matchTextOrRegex(line.raw, exc)) {
+      if (RLS.matchesCompiledTerm(line.raw, exc)) {
         return false;
       }
     }
@@ -468,7 +530,7 @@
     if (!newLinesOnly) {
       STATE.prettyView.innerHTML = "";
 
-      const matchedLines = STATE.lines.filter(RLS.matchesFilters);
+      const matchedLines = RLS.getFilteredLines();
       const hiddenCount = Math.max(matchedLines.length - MAX_RENDER_LINES, 0);
 
       if (hiddenCount > 0) {
@@ -538,7 +600,7 @@
 
       // Add or update the overflow notice
       let noticeEl = STATE.prettyView.querySelector(".rancher-log-style__notice");
-      const totalMatched = STATE.lines.filter(RLS.matchesFilters).length;
+      const totalMatched = RLS.getFilteredLines().length;
       if (totalMatched > MAX_RENDER_LINES) {
         if (!noticeEl) {
           noticeEl = document.createElement("div");
@@ -559,7 +621,8 @@
 
   RLS.updateStatusText = function() {
     const totalCount = STATE.lines.length;
-    const matchedCount = STATE.lines.filter(RLS.matchesFilters).length;
+    const matchedCount =
+      STATE.keyword || STATE.level !== "ALL" ? RLS.getFilteredLines().length : totalCount;
 
     if (STATE.controls?.inlineStatus) {
       STATE.controls.inlineStatus.textContent = 
@@ -592,8 +655,7 @@
         }
       }
       STATE.lines = [];
-      STATE.lastRawText = "";
-      STATE.lastChildrenCount = 0;
+      RLS.invalidateFilterCache();
     }
 
     const nextNewLines = RLS.parseNewLines();
@@ -603,6 +665,8 @@
       if (STATE.lines.length > MAX_CACHE_LIMIT) {
         STATE.lines = STATE.lines.slice(-MAX_CACHE_LIMIT);
       }
+
+      RLS.invalidateFilterCache();
 
       if (STATE.mode === "pretty") {
         RLS.renderPrettyLines(nextNewLines); // Incremental Update!
@@ -755,8 +819,7 @@
     }
 
     STATE.lines = [];
-    STATE.lastRawText = "";
-    STATE.lastChildrenCount = 0;
+    RLS.invalidateFilterCache();
 
     if (STATE.rawView?.children) {
       for (const child of STATE.rawView.children) {
@@ -796,9 +859,14 @@
     window.clearTimeout(STATE.refreshTimer);
     STATE.refreshTimer = null;
 
+    if (STATE.keydownHandler) {
+      window.removeEventListener("keydown", STATE.keydownHandler);
+      STATE.keydownHandler = null;
+    }
+
+    STATE.controls?.levelSelect?.cleanup?.();
     STATE.lines = [];
-    STATE.lastRawText = "";
-    STATE.lastChildrenCount = 0;
+    RLS.invalidateFilterCache();
 
     if (STATE.rawView) {
       STATE.rawView.style.display = STATE.rawOriginalDisplay;
@@ -931,6 +999,7 @@
     keywordInput.addEventListener("input", () => {
       STATE.keyword = keywordInput.value;
       localStorage.setItem("rls_keyword", STATE.keyword);
+      RLS.invalidateFilterCache();
       RLS.renderPrettyLines();
       RLS.updateStatusText();
     });
@@ -1062,8 +1131,11 @@
         }
       }
     };
-    window.removeEventListener("keydown", handleKeys);
-    window.addEventListener("keydown", handleKeys);
+    if (STATE.keydownHandler) {
+      window.removeEventListener("keydown", STATE.keydownHandler);
+    }
+    STATE.keydownHandler = handleKeys;
+    window.addEventListener("keydown", STATE.keydownHandler);
 
     RLS.attachRawObserver();
     RLS.refreshLogView(true); // Force initial full parse
@@ -1101,6 +1173,10 @@
   };
 
   RLS.bootstrap = function() {
+    if (!RLS.isSupportedPage()) {
+      return;
+    }
+
     RLS.inspectPage();
 
     STATE.bodyObserver?.disconnect();

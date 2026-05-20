@@ -55,6 +55,7 @@
     const setValue = (value) => {
       RLS.STATE.level = value;
       localStorage.setItem("rls_level", RLS.STATE.level);
+      RLS.invalidateFilterCache?.();
       label.textContent = value;
       menu.querySelectorAll(".rancher-log-style__level-option").forEach((option) => {
         option.classList.toggle("is-selected", option.dataset.value === value);
@@ -80,14 +81,18 @@
       root.classList.toggle("is-open");
     });
 
-    document.addEventListener("click", (event) => {
+    const handleOutsideClick = (event) => {
       if (!root.contains(event.target)) {
         root.classList.remove("is-open");
       }
-    });
+    };
+    document.addEventListener("click", handleOutsideClick);
 
     root.appendChild(button);
     root.appendChild(menu);
+    root.cleanup = () => {
+      document.removeEventListener("click", handleOutsideClick);
+    };
     return root;
   };
 })();
